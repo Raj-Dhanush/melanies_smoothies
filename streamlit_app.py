@@ -1,20 +1,21 @@
 # Import python packages
 import streamlit as st
 from snowflake.snowpark.functions import col
+import requests
 
 # Title
 st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
-
 st.write("Choose the fruits you want in your custom Smoothie!")
 
-# ✅ Name input
+# Name input
 name_on_order = st.text_input('Name on Smoothie:')
 st.write('The name on your Smoothie will be:', name_on_order)
 
+# Snowflake connection
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Fetch only FRUIT_NAME column
+# Fetch fruit names
 my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
 
 # Multiselect
@@ -27,26 +28,16 @@ ingredients_list = st.multiselect(
 if ingredients_list:
     ingredients_string = ''
 
-    # FOR loop (as required by lab)
     for fruit_chosen in ingredients_list:
         ingredients_string += fruit_chosen + ' '
 
-    # ✅ Build SQL (2 columns)
-    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
-                        values ('""" + ingredients_string + """','""" + name_on_order + """')"""
+        # API call for each fruit
+        smoothiefroot_response = requests.get(
+            f"https://my.smoothiefroot.com/api/fruit/{fruit_chosen.lower()}"
+        )
 
-    # Submit button
-    time_to_insert = st.button('Submit Order')
-
-    # Insert only when button clicked
-    if time_to_insert:
-        session.sql(my_insert_stmt).collect()
-
-        # Success message with name
-        st.success('Your Smoothie is ordered, ' + name_on_order + '!', icon="✅")
-# New section to display smoothiefroot nutrition information
-import requests
-
-smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/watermelon")
-
-sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
+        # Display dataframe
+        st.dataframe(
+            data=smoothiefroot_response.json(),
+            use_container_width=True
+        )
